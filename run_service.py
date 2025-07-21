@@ -9,13 +9,17 @@ import time
 import logging
 import asyncio
 import signal
+import importlib.util
 from datetime import datetime
 from pathlib import Path
 
-# Add the script directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Import the main scraper module (handles hyphenated filename)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_file_location("telegram_scraper", os.path.join(script_dir, "telegram-scraper.py"))
+telegram_scraper = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(telegram_scraper)
 
-from telegram_scraper import OptimizedTelegramScraper
+OptimizedTelegramScraper = telegram_scraper.OptimizedTelegramScraper
 
 # Configure logging
 log_dir = Path("logs")
