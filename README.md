@@ -128,6 +128,8 @@ When scraping a channel for the first time, please note:
 
 ## Usage 📝
 
+### Interactive Mode
+
 The script provides an interactive menu with the following options:
 
 - **[A]** Add new channel
@@ -147,6 +149,38 @@ The script provides an interactive menu with the following options:
 - **[L]** List account channels
   - List all channels with ID:s for account
 - **[Q]** Quit
+
+### Service Mode 🔄
+
+For unattended continuous operation, use the service runner:
+
+```bash
+python run_service.py
+```
+
+**Service Features:**
+- **Automatic continuous scraping** of all configured channels
+- **Proper logging** to both console and daily log files in `logs/` directory
+- **Graceful shutdown** handling (Ctrl+C or SIGTERM)
+- **Error recovery** - continues running even if individual channels fail
+- **Configurable intervals** between scraping cycles
+- **Production-ready** for long-term operation
+
+**Service Configuration:**
+```bash
+# Set custom scraping interval (default: 5 minutes)
+SCRAPE_INTERVAL=600 python run_service.py  # 10 minutes
+
+# Run in background
+nohup python run_service.py &
+
+# Or use with systemd (see Service Setup section)
+```
+
+**Service Prerequisites:**
+1. First run the interactive mode to configure channels and credentials
+2. Ensure channels are added and working properly
+3. Then switch to service mode for unattended operation
 
 ### Channel IDs 📢
 
@@ -221,6 +255,76 @@ The script can download:
 - **Improved retry mechanism** with exponential backoff
 - Skips existing files to avoid duplicates
 
+## Service Setup 🔧
+
+### Running as a System Service (Linux)
+
+For production deployments, you can run the scraper as a systemd service:
+
+1. **Edit the service file** with your paths:
+```bash
+# Edit telegram-scraper.service
+nano telegram-scraper.service
+
+# Update these lines with your actual paths:
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/telegram-scraper
+Environment="PATH=/path/to/telegram-scraper/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/path/to/telegram-scraper/venv/bin/python /path/to/telegram-scraper/run_service.py
+```
+
+2. **Install and start the service**:
+```bash
+# Create log directory
+sudo mkdir -p /var/log/telegram-scraper
+sudo chown YOUR_USERNAME:YOUR_USERNAME /var/log/telegram-scraper
+
+# Install service
+sudo cp telegram-scraper.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable telegram-scraper
+
+# Start service
+sudo systemctl start telegram-scraper
+```
+
+3. **Monitor the service**:
+```bash
+# Check status
+sudo systemctl status telegram-scraper
+
+# View logs
+sudo journalctl -u telegram-scraper -f
+
+# View application logs
+tail -f logs/telegram_scraper_*.log
+```
+
+4. **Control the service**:
+```bash
+# Stop service
+sudo systemctl stop telegram-scraper
+
+# Restart service
+sudo systemctl restart telegram-scraper
+
+# Disable auto-start
+sudo systemctl disable telegram-scraper
+```
+
+### Service Logs 📋
+
+The service creates detailed logs in multiple locations:
+
+- **Application logs**: `logs/telegram_scraper_YYYYMMDD.log` (daily rotation)
+- **System logs**: `journalctl -u telegram-scraper`
+- **Service output**: `/var/log/telegram-scraper/` (if using systemd)
+
+**Log levels:**
+- **INFO**: Normal operation, scraping progress
+- **ERROR**: Channel errors, network issues
+- **DEBUG**: Detailed troubleshooting information
+
 ## Error Handling 🛠️
 
 The script includes:
@@ -229,6 +333,7 @@ The script includes:
 - **Improved flood control** compliance
 - Comprehensive error logging for failed operations
 - **Better rate limit handling** with automatic waiting
+- **Service-level error recovery** - continues operation when individual channels fail
 
 ## Limitations ⚠️
 

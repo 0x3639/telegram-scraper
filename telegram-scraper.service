@@ -1,0 +1,21 @@
+[Unit]
+Description=Telegram Scraper Service
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/path/to/telegram-scraper
+Environment="PATH=/path/to/telegram-scraper/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/path/to/telegram-scraper/venv/bin/python /path/to/telegram-scraper/telegram-scraper.py --continuous
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/telegram-scraper/output.log
+StandardError=append:/var/log/telegram-scraper/error.log
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
