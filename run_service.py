@@ -40,6 +40,7 @@ class TelegramScraperService:
     def __init__(self):
         self.scraper = OptimizedTelegramScraper()
         self.running = True
+        self.shutdown_requested = False
         self.setup_signal_handlers()
         
     def setup_signal_handlers(self):
@@ -49,7 +50,12 @@ class TelegramScraperService:
     
     def shutdown_handler(self, signum, frame):
         """Handle shutdown signals gracefully"""
+        if self.shutdown_requested:
+            logger.warning("Force shutdown requested, exiting immediately...")
+            sys.exit(0)
+        
         logger.info(f"Received signal {signum}, shutting down gracefully...")
+        self.shutdown_requested = True
         self.running = False
         self.scraper.continuous_scraping_active = False
         
@@ -68,12 +74,13 @@ class TelegramScraperService:
                 return
             
             # Run continuous scraping
-            while self.running:
+            while self.running and not self.shutdown_requested:
                 try:
                     logger.info(f"Starting scrape cycle for {len(self.scraper.state['channels'])} channels")
                     
                     for channel in self.scraper.state['channels']:
-                        if not self.running:
+                        if not self.running or self.shutdown_requested:
+                            logger.info("Shutdown requested, stopping channel processing...")
                             break
                             
                         logger.info(f"Scraping channel: {channel}")
@@ -86,11 +93,17 @@ class TelegramScraperService:
                             logger.error(f"Error scraping channel {channel}: {e}")
                             # Continue with other channels
                     
-                    if self.running:
-                        # Wait before next cycle (configurable)
+                    if self.running and not self.shutdown_requested:
+                        # Wait before next cycle (configurable) - interruptible sleep
                         wait_time = int(os.environ.get('SCRAPE_INTERVAL', 300))  # Default 5 minutes
                         logger.info(f"Waiting {wait_time} seconds before next cycle...")
-                        await asyncio.sleep(wait_time)
+                        
+                        # Sleep in small chunks so we can respond to shutdown signals
+                        for _ in range(wait_time):
+                            if not self.running or self.shutdown_requested:
+                                logger.info("Shutdown requested during wait, exiting...")
+                                break
+                            await asyncio.sleep(1)
                         
                 except Exception as e:
                     logger.error(f"Error in scraping cycle: {e}")
